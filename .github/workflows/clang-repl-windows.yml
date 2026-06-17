@@ -1,0 +1,41 @@
+name: Clang-Repl Windows Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout LLVM
+        uses: actions/checkout@v6
+        with:
+          path: llvm-project
+          fetch-depth: 1
+
+      - name: Build Clang and Clang-Repl
+        shell: pwsh
+        run: |
+          $env:ncpus = $([Environment]::ProcessorCount)
+
+          New-Item -ItemType Directory -Force -Path llvm-project\build | Out-Null
+          Set-Location llvm-project\build
+
+          cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+                -DLLVM_ENABLE_PROJECTS=clang `
+                -G "Ninja" `
+                ../llvm
+
+          cmake --build . --target clang clang-repl --parallel $env:ncpus
+
+      - name: Verify Clang-Repl
+        shell: pwsh
+        run: |
+          Set-Location llvm-project\build\bin
+          .\clang-repl --version
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-repl-windows
+          path: llvm-project\build\bin\
